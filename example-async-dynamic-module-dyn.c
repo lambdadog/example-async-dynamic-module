@@ -7,6 +7,8 @@
 
 #define UNUSED(x) (void)(x)
 
+/* An asynchronous "submission", which is submitted to a new worker
+   thread. */
 struct submission {
   unsigned int seconds;
   ptrdiff_t string_len;
@@ -14,6 +16,9 @@ struct submission {
   uint32_t callback_num;
 };
 
+/* An asynchronous "completion", which is pushed to the C static
+   global `completions' variable to be drained by
+   `example-async-dynamic-module-dyn--drain-completions' */
 struct completion {
   struct completion *next;
   ptrdiff_t string_len;
@@ -23,13 +28,20 @@ struct completion {
 
 int plugin_is_GPL_compatible;
 
+/* The file descriptor of our pipe process, gotten by calling
+   `open_channel' */
 static int channel_fd = -1;
+
+/* Used to assign new callback ids */
 static uint32_t callback_idx = 0;
+
+/* An internally linked list of completions, to be drained by
+   `example-async-dynamic-module-dyn--drain-completions' */
 static struct completion *completions = NULL;
 static pthread_mutex_t completions_lock;
 
-/* Handles signals and errors by rethrowing them. If this function
-   returns false, cleanup and exit immediately. */
+/* Handles signals and errors by rethrowing/signaling them. If this
+   function returns false, cleanup and exit immediately. */
 static bool
 handle_non_local_exit (emacs_env *env)
 {
@@ -55,8 +67,8 @@ handle_non_local_exit (emacs_env *env)
 }
 
 // FIXME: do error handling
-/* Drains all completions. Is automatically called by the process
-   filter on reading new output. */
+/* Drains all completions. Is called by the process filter upon being
+   notified by a worker thread that completions are available. */
 static emacs_value
 Fexample_async_dynamic_module_dyn__drain_completions (emacs_env *env,
 						      ptrdiff_t nargs,
@@ -83,10 +95,6 @@ Fexample_async_dynamic_module_dyn__drain_completions (emacs_env *env,
   struct completion *cmplt;
   emacs_value cons_args[2];
 
-  // I'm not sure if I should lock over this entire loop or just lock
-  // each time I'm pulling a completion off the list... In theory if I
-  // just lock when I'm pulling a completion of the list this function
-  // could run forever, but that's not a very realistic concern.
   pthread_mutex_lock (&completions_lock);
   while (completions != NULL)
     {
@@ -112,8 +120,8 @@ Fexample_async_dynamic_module_dyn__drain_completions (emacs_env *env,
 }
 
 // FIXME: do error handling
-/* Run in a new thread as an example of long, blocking work being
-   wrapped with an async function. */
+/* Runs in a new thread as an example of long, blocking work being
+   wrapped by an async function. */
 static void
 *run_sleep_ret (void *ptr)
 {
@@ -150,14 +158,16 @@ static void
 
   char zero = 0;
   write (channel_fd, (void *) &zero, 1);
-  // I'm not actually sure if this is necessary?
+  // I'm not actually sure if this is necessary for a pipe created by
+  // Emacs. TODO: determine
   fdatasync (channel_fd);
 
   return NULL;
 }
 
-/* Sleeps then calls a callback. Takes SECONDS and STRING as its
-   arguments, callback is handled via elisp wrapper. */
+/* Spawns a thread which sleeps, submits a completion, then notifies
+   Emacs. Takes SECONDS and STRING as its arguments, returns a
+   "callback id" used to register a callback on the elisp end. */
 static emacs_value
 Fexample_async_dynamic_module_dyn__sleep_ret (emacs_env *env, ptrdiff_t nargs,
 					      emacs_value *args, void *data)
@@ -217,7 +227,8 @@ Fexample_async_dynamic_module_dyn__sleep_ret (emacs_env *env, ptrdiff_t nargs,
   return NULL;
 }
 
-/* Initializes module. Takes a pipe process as its argument. */
+/* Initializes module. Takes a pipe process which will be used to
+   notify that there are available completions as its argument. */
 static emacs_value
 Fexample_async_dynamic_module_dyn__init (emacs_env *env, ptrdiff_t nargs,
 					 emacs_value *args, void *data)
@@ -244,7 +255,7 @@ Fexample_async_dynamic_module_dyn__init (emacs_env *env, ptrdiff_t nargs,
 }
 
 /* Defines a function. If it returns false, cleanup and exit
-   immediately. */
+   immediately, because an error or signal has been thrown. */
 static bool
 defun (emacs_env *env, const char *name, emacs_function function,
        ptrdiff_t arity)
@@ -267,7 +278,7 @@ defun (emacs_env *env, const char *name, emacs_function function,
 }
 
 /* Provides a feature. If it returns false, cleanup and exit
-   immediately. */
+   immediately, because an error or signal has been thrown. */
 static bool
 provide (emacs_env *env, const char *feature_name)
 {
@@ -284,6 +295,7 @@ provide (emacs_env *env, const char *feature_name)
   return false;
 }
 
+/* Initializes the module. */
 int
 emacs_module_init (struct emacs_runtime *runtime)
 {
@@ -299,6 +311,7 @@ emacs_module_init (struct emacs_runtime *runtime)
   if ((unsigned long) env->size < sizeof (*env))
     goto err;
 
+  // Register our functions
   if (!defun (env, "example-async-dynamic-module-dyn--init",
 	      Fexample_async_dynamic_module_dyn__init, 1))
     goto err;
@@ -311,6 +324,7 @@ emacs_module_init (struct emacs_runtime *runtime)
 	      Fexample_async_dynamic_module_dyn__drain_completions, 0))
     goto err;
 
+  // Provide the `example-async-dynamic-module-dyn' feature.
   if (!provide (env, "example-async-dynamic-module-dyn"))
     goto err;
 
