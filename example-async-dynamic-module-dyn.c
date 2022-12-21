@@ -256,8 +256,6 @@ Fexample_async_dynamic_module_dyn__init (emacs_env *env, ptrdiff_t nargs,
   UNUSED (nargs);
   UNUSED (data);
 
-  emacs_value channel;
-
   if (channel_fd != -1)
     {
       env->non_local_exit_throw (env, env->intern (env, "already-initialized"),
@@ -265,9 +263,23 @@ Fexample_async_dynamic_module_dyn__init (emacs_env *env, ptrdiff_t nargs,
       goto err;
     }
 
-  channel = args[0];
+  if (!env->eq(env,
+	       env->type_of (env, args[0]),
+	       env->intern (env, "process")))
+    {
+      emacs_value list_args[2];
 
-  channel_fd = env->open_channel (env, channel);
+      list_args[0] = env->intern (env, "processp");
+      list_args[1] = args[0];
+
+      env->non_local_exit_throw (env, env->intern (env, "wrong-type-argument"),
+				 env->funcall (env, env->intern (env, "list"),
+					      2, list_args));
+
+      goto err;
+    }
+
+  channel_fd = env->open_channel (env, args[0]);
 
   return env->intern (env, "nil");
  err:
