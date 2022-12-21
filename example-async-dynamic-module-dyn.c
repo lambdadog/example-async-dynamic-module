@@ -280,12 +280,13 @@ emacs_module_init (struct emacs_runtime *runtime)
 {
   emacs_env *env;
 
-  if ((unsigned long) runtime->size < sizeof (*runtime))
-    goto err;
-
   env = runtime->get_environment (runtime);
-  if ((unsigned long) env->size < sizeof (*env))
+
+  if ((unsigned long) env->size < sizeof (struct emacs_env_28)) {
+    env->non_local_exit_throw (env, env->intern (env, "module-requires-emacs-28.1+"),
+			       env->intern (env, "nil"));
     goto err;
+  }
 
   // Register our functions
   defun (env, "example-async-dynamic-module-dyn--init",
