@@ -190,7 +190,7 @@ Fexample_async_dynamic_module_dyn__drain_completions (emacs_env *env,
       completions = cmplt->next;
 
       cons_args[0] = env->make_integer (env, (intmax_t) cmplt->callback_num);
-      cons_args[1] = env->make_string (env, cmplt->string, cmplt->string_len-1);
+      cons_args[1] = env->make_string (env, cmplt->string, cmplt->string_len);
 
       cons_args[0] = env->funcall (env, Qcons, 2, cons_args);
       cons_args[1] = result;
@@ -249,7 +249,8 @@ Fexample_async_dynamic_module_dyn__sleep_ret (emacs_env *env, ptrdiff_t nargs,
 
   thread_data = malloc (sizeof (*thread_data));
   thread_data->seconds = seconds;
-  thread_data->string_len = string_len;
+  // string_len includes the null byte
+  thread_data->string_len = string_len - 1;
   thread_data->string = string;
   thread_data->callback_num = (uint32_t) callback_num;
 
