@@ -5,3 +5,11 @@ to implement asynchronous functions in emacs dynamic modules.
 
 Obviously a particularly contrived example and in the real world you
 would probably prefer to use a thread pool of some sort, but works.
+
+## Currently unimplemented
+ - Handling `kill-process` on our pipe process (or the pipe just
+   breaking, for whatever reason)
+   + This could be done by adding a deinit function in our dynamic
+	 module and installing a process sentinel on the pipe process that
+	 detects being killed and calls the dynamic module's deinit
+	 function.
