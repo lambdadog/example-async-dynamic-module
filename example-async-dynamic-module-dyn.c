@@ -220,6 +220,38 @@ Fexample_async_dynamic_module_dyn__sleep_ret (emacs_env *env, ptrdiff_t nargs,
       goto err;
     }
 
+  if (!env->eq(env,
+	       env->type_of (env, args[0]),
+	       env->intern (env, "integer")))
+    {
+      emacs_value list_args[2];
+
+      list_args[0] = env->intern (env, "integerp");
+      list_args[1] = args[0];
+
+      env->non_local_exit_throw (env, env->intern (env, "wrong-type-argument"),
+				 env->funcall (env, env->intern (env, "list"),
+					      2, list_args));
+
+      goto err;
+    }
+
+  if (!env->eq(env,
+	       env->type_of (env, args[1]),
+	       env->intern (env, "string")))
+    {
+      emacs_value list_args[2];
+
+      list_args[0] = env->intern (env, "stringp");
+      list_args[1] = args[1];
+
+      env->non_local_exit_throw (env, env->intern (env, "wrong-type-argument"),
+				 env->funcall (env, env->intern (env, "list"),
+					      2, list_args));
+
+      goto err;
+    }
+
   seconds = (unsigned int) env->extract_integer (env, args[0]);
   if (!handle_non_local_exit (env))
     goto err;
