@@ -229,9 +229,9 @@ Fexample_async_dynamic_module_dyn__sleep_ret (emacs_env *env, ptrdiff_t nargs,
       list_args[0] = env->intern (env, "integerp");
       list_args[1] = args[0];
 
-      env->non_local_exit_throw (env, env->intern (env, "wrong-type-argument"),
-				 env->funcall (env, env->intern (env, "list"),
-					      2, list_args));
+      env->non_local_exit_signal (env, env->intern (env, "wrong-type-argument"),
+				  env->funcall (env, env->intern (env, "list"),
+						2, list_args));
 
       goto err;
     }
@@ -245,9 +245,9 @@ Fexample_async_dynamic_module_dyn__sleep_ret (emacs_env *env, ptrdiff_t nargs,
       list_args[0] = env->intern (env, "stringp");
       list_args[1] = args[1];
 
-      env->non_local_exit_throw (env, env->intern (env, "wrong-type-argument"),
-				 env->funcall (env, env->intern (env, "list"),
-					      2, list_args));
+      env->non_local_exit_signal (env, env->intern (env, "wrong-type-argument"),
+				  env->funcall (env, env->intern (env, "list"),
+						2, list_args));
 
       goto err;
     }
@@ -304,9 +304,9 @@ Fexample_async_dynamic_module_dyn__init (emacs_env *env, ptrdiff_t nargs,
       list_args[0] = env->intern (env, "processp");
       list_args[1] = args[0];
 
-      env->non_local_exit_throw (env, env->intern (env, "wrong-type-argument"),
-				 env->funcall (env, env->intern (env, "list"),
-					      2, list_args));
+      env->non_local_exit_signal (env, env->intern (env, "wrong-type-argument"),
+				  env->funcall (env, env->intern (env, "list"),
+						2, list_args));
 
       goto err;
     }
