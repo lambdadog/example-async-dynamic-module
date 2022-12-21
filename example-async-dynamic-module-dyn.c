@@ -161,8 +161,14 @@ Fexample_async_dynamic_module_dyn__drain_completions (emacs_env *env,
 
   if (channel_fd == -1)
     {
-      env->non_local_exit_throw (env, env->intern (env, "not-initialized"),
-				 env->intern (env, "nil"));
+      emacs_value cons_args[2];
+
+      cons_args[0] = env->make_string (env, "not initialized", 15);
+      cons_args[1] = env->intern (env, "nil");
+
+      env->non_local_exit_signal (env, env->intern (env, "error"),
+				  env->funcall (env, env->intern (env, "cons"),
+						2, cons_args));
       goto err;
     }
 
@@ -215,8 +221,14 @@ Fexample_async_dynamic_module_dyn__sleep_ret (emacs_env *env, ptrdiff_t nargs,
 
   if (channel_fd == -1)
     {
-      env->non_local_exit_throw (env, env->intern (env, "not-initialized"),
-				 env->intern (env, "nil"));
+      emacs_value cons_args[2];
+
+      cons_args[0] = env->make_string (env, "not initialized", 15);
+      cons_args[1] = env->intern (env, "nil");
+
+      env->non_local_exit_signal (env, env->intern (env, "error"),
+				  env->funcall (env, env->intern (env, "cons"),
+						2, cons_args));
       goto err;
     }
 
@@ -290,8 +302,14 @@ Fexample_async_dynamic_module_dyn__init (emacs_env *env, ptrdiff_t nargs,
 
   if (channel_fd != -1)
     {
-      env->non_local_exit_throw (env, env->intern (env, "already-initialized"),
-				 env->intern (env, "nil"));
+      emacs_value cons_args[2];
+
+      cons_args[0] = env->make_string (env, "already initialized", 19);
+      cons_args[1] = env->intern (env, "nil");
+
+      env->non_local_exit_signal (env, env->intern (env, "error"),
+				  env->funcall (env, env->intern (env, "cons"),
+						2, cons_args));
       goto err;
     }
 
