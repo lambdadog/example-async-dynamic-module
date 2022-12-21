@@ -65,6 +65,96 @@ handle_non_local_exit (emacs_env *env)
     }
 }
 
+/* Defines a function. If it returns false, cleanup and exit
+   immediately, because an error or signal has been thrown. */
+static bool
+defun (emacs_env *env, const char *name, emacs_function function,
+       ptrdiff_t arity)
+{
+  emacs_value func;
+  emacs_value args[2];
+
+  func = env->make_function (env, arity, arity, function, NULL, NULL);
+
+  args[0] = env->intern (env, name);
+  args[1] = func;
+
+  env->funcall (env, env->intern (env, "defalias"), 2, args);
+  if (!handle_non_local_exit (env))
+    goto err;
+
+  return true;
+ err:
+  return false;
+}
+
+/* Provides a feature. If it returns false, cleanup and exit
+   immediately, because an error or signal has been thrown. */
+static bool
+provide (emacs_env *env, const char *feature_name)
+{
+  emacs_value args[1];
+
+  args[0] = env->intern (env, feature_name);
+
+  env->funcall (env, env->intern (env, "provide"), 1, args);
+  if (!handle_non_local_exit (env))
+    goto err;
+
+  return true;
+ err:
+  return false;
+}
+
+/* Runs in a new thread as an example of long, blocking work being
+   wrapped by an async function. */
+static void
+*run_sleep_ret (void *ptr)
+{
+  struct submission *thread_data;
+
+  unsigned int seconds;
+  ptrdiff_t string_len;
+  char *string;
+  uint32_t callback_num;
+
+  struct completion *next_completion;
+
+  thread_data = (struct submission *) ptr;
+
+  seconds = thread_data->seconds;
+  string_len = thread_data->string_len;
+  string = thread_data->string;
+  callback_num = thread_data->callback_num;
+
+  free (thread_data);
+
+  while (seconds > 0)
+    seconds = sleep (seconds);
+
+  // Write completion
+  next_completion = malloc (sizeof (*next_completion));
+  next_completion->string_len = string_len;
+  next_completion->string = string;
+  next_completion->callback_num = callback_num;
+
+  pthread_mutex_lock (&completions_lock);
+  next_completion->next = completions;
+  completions = next_completion;
+  pthread_mutex_unlock (&completions_lock);
+
+  char zero = 0;
+  if (write (channel_fd, (void *) &zero, 1) != -1)
+    // If the channel is closed it's essentially possible to
+    // error-handle meaningfully as we have no way to talk to the main
+    // process at all, but we can at least skip trying to fdatasync.
+    goto fin;
+  fdatasync (channel_fd);
+
+ fin:
+  return NULL;
+}
+
 /* Drains all completions. Is called by the process filter upon being
    notified by a worker thread that completions are available. */
 static emacs_value
@@ -114,55 +204,6 @@ Fexample_async_dynamic_module_dyn__drain_completions (emacs_env *env,
 
   return result;
  err:
-  return NULL;
-}
-
-/* Runs in a new thread as an example of long, blocking work being
-   wrapped by an async function. */
-static void
-*run_sleep_ret (void *ptr)
-{
-  struct submission *thread_data;
-
-  unsigned int seconds;
-  ptrdiff_t string_len;
-  char *string;
-  uint32_t callback_num;
-
-  struct completion *next_completion;
-
-  thread_data = (struct submission *) ptr;
-
-  seconds = thread_data->seconds;
-  string_len = thread_data->string_len;
-  string = thread_data->string;
-  callback_num = thread_data->callback_num;
-
-  free (thread_data);
-
-  while (seconds > 0)
-    seconds = sleep (seconds);
-
-  // Write completion
-  next_completion = malloc (sizeof (*next_completion));
-  next_completion->string_len = string_len;
-  next_completion->string = string;
-  next_completion->callback_num = callback_num;
-
-  pthread_mutex_lock (&completions_lock);
-  next_completion->next = completions;
-  completions = next_completion;
-  pthread_mutex_unlock (&completions_lock);
-
-  char zero = 0;
-  if (write (channel_fd, (void *) &zero, 1) != -1)
-    // If the channel is closed it's essentially possible to
-    // error-handle meaningfully as we have no way to talk to the main
-    // process at all, but we can at least skip trying to fdatasync.
-    goto fin;
-  fdatasync (channel_fd);
-
- fin:
   return NULL;
 }
 
@@ -253,47 +294,6 @@ Fexample_async_dynamic_module_dyn__init (emacs_env *env, ptrdiff_t nargs,
   return env->intern (env, "nil");
  err:
   return NULL;
-}
-
-/* Defines a function. If it returns false, cleanup and exit
-   immediately, because an error or signal has been thrown. */
-static bool
-defun (emacs_env *env, const char *name, emacs_function function,
-       ptrdiff_t arity)
-{
-  emacs_value func;
-  emacs_value args[2];
-
-  func = env->make_function (env, arity, arity, function, NULL, NULL);
-
-  args[0] = env->intern (env, name);
-  args[1] = func;
-
-  env->funcall (env, env->intern (env, "defalias"), 2, args);
-  if (!handle_non_local_exit (env))
-    goto err;
-
-  return true;
- err:
-  return false;
-}
-
-/* Provides a feature. If it returns false, cleanup and exit
-   immediately, because an error or signal has been thrown. */
-static bool
-provide (emacs_env *env, const char *feature_name)
-{
-  emacs_value args[1];
-
-  args[0] = env->intern (env, feature_name);
-
-  env->funcall (env, env->intern (env, "provide"), 1, args);
-  if (!handle_non_local_exit (env))
-    goto err;
-
-  return true;
- err:
-  return false;
 }
 
 /* Initializes the module. */
