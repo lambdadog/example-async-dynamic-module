@@ -23,6 +23,8 @@
   "Asynchronously sleeps for SECONDS seconds, then calls CB with
 MESSAGE. MESSAGE must be a string, due to limitations I couldn't
 discover a way to work around."
+  (unless (functionp cb)
+    (signal 'wrong-type-argument `(functionp ,cb)))
   ;; Initialize pipe if necessary
   (unless example-async-dynamic-module--pipe
     (setq example-async-dynamic-module--pipe
