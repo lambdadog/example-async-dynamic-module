@@ -83,6 +83,10 @@ Fexample_async_dynamic_module_dyn__drain_completions (emacs_env *env,
   struct completion *cmplt;
   emacs_value cons_args[2];
 
+  // I'm not sure if I should lock over this entire loop or just lock
+  // each time I'm pulling a completion off the list... In theory if I
+  // just lock when I'm pulling a completion of the list this function
+  // could run forever, but that's not a very realistic concern.
   pthread_mutex_lock (&completions_lock);
   while (completions != NULL)
     {
