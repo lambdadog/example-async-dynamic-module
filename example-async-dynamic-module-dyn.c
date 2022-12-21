@@ -131,7 +131,7 @@ static void
 
   char zero = 0;
   if (write (channel_fd, (void *) &zero, 1) != -1)
-    // If the channel is closed it's essentially possible to
+    // If the channel is closed it's essentially impossible to
     // error-handle meaningfully as we have no way to talk to the main
     // process at all, but we can at least skip trying to fdatasync.
     goto fin;
