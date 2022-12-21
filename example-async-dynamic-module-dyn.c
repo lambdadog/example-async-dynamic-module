@@ -285,14 +285,14 @@ emacs_module_init (struct emacs_runtime *runtime)
 {
   emacs_env *env;
 
+  if (pthread_mutex_init(&completions_lock, NULL) != 0)
+    goto err;
+
   if ((unsigned long) runtime->size < sizeof (*runtime))
     goto err;
 
   env = runtime->get_environment (runtime);
   if ((unsigned long) env->size < sizeof (*env))
-    goto err;
-
-  if (pthread_mutex_init(&completions_lock, NULL) != 0)
     goto err;
 
   if (!defun (env, "example-async-dynamic-module-dyn--init",
@@ -312,5 +312,6 @@ emacs_module_init (struct emacs_runtime *runtime)
 
   return 0;
  err:
+  pthread_mutex_destroy (&completions_lock);
   return 1;
 }
