@@ -38,7 +38,7 @@ static uint32_t callback_idx = 0;
 /* An internally linked list of completions, to be drained by
    `example-async-dynamic-module-dyn--drain-completions' */
 static struct completion *completions = NULL;
-static pthread_mutex_t completions_lock;
+static pthread_mutex_t completions_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /* Handles signals and errors by rethrowing/signaling them. If this
    function returns false, cleanup and exit immediately. */
@@ -301,9 +301,6 @@ emacs_module_init (struct emacs_runtime *runtime)
 {
   emacs_env *env;
 
-  if (pthread_mutex_init(&completions_lock, NULL) != 0)
-    goto err;
-
   if ((unsigned long) runtime->size < sizeof (*runtime))
     goto err;
 
@@ -330,6 +327,5 @@ emacs_module_init (struct emacs_runtime *runtime)
 
   return 0;
  err:
-  pthread_mutex_destroy (&completions_lock);
   return 1;
 }
