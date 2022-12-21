@@ -326,10 +326,13 @@ emacs_module_init (struct emacs_runtime *runtime)
 
   env = runtime->get_environment (runtime);
 
+  // Since we're throwing our own error here, we don't want to return
+  // with a non-0 exit code, since that will cause `module-load` to
+  // signal, superseding our signal with additional context.
   if ((unsigned long) env->size < sizeof (struct emacs_env_28)) {
-    env->non_local_exit_throw (env, env->intern (env, "module-requires-emacs-28.1+"),
-			       env->intern (env, "nil"));
-    goto err;
+    env->non_local_exit_signal (env, env->intern (env, "module-init-failed"),
+				env->intern (env, "module-requires-emacs-28.1+"));
+    goto fin;
   }
 
   // Register our functions
@@ -345,7 +348,6 @@ emacs_module_init (struct emacs_runtime *runtime)
   // Provide the `example-async-dynamic-module-dyn' feature.
   provide (env, "example-async-dynamic-module-dyn");
 
+ fin:
   return 0;
- err:
-  return 1;
 }
