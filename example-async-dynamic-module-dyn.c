@@ -65,9 +65,8 @@ handle_non_local_exit (emacs_env *env)
     }
 }
 
-/* Defines a function. If it returns false, cleanup and exit
-   immediately, because an error or signal has been thrown. */
-static bool
+/* Defines a function. */
+static void
 defun (emacs_env *env, const char *name, emacs_function function,
        ptrdiff_t arity)
 {
@@ -80,17 +79,10 @@ defun (emacs_env *env, const char *name, emacs_function function,
   args[1] = func;
 
   env->funcall (env, env->intern (env, "defalias"), 2, args);
-  if (!handle_non_local_exit (env))
-    goto err;
-
-  return true;
- err:
-  return false;
 }
 
-/* Provides a feature. If it returns false, cleanup and exit
-   immediately, because an error or signal has been thrown. */
-static bool
+/* Provides a feature. */
+static void
 provide (emacs_env *env, const char *feature_name)
 {
   emacs_value args[1];
@@ -98,12 +90,6 @@ provide (emacs_env *env, const char *feature_name)
   args[0] = env->intern (env, feature_name);
 
   env->funcall (env, env->intern (env, "provide"), 1, args);
-  if (!handle_non_local_exit (env))
-    goto err;
-
-  return true;
- err:
-  return false;
 }
 
 /* Runs in a new thread as an example of long, blocking work being
@@ -258,15 +244,6 @@ Fexample_async_dynamic_module_dyn__sleep_ret (emacs_env *env, ptrdiff_t nargs,
 
   return env->make_integer (env, (intmax_t) thread_data->callback_num);
  err:
-  if (thread_data != NULL)
-    free (thread_data);
-
-  if (callback_num != -1)
-    callback_idx--;
-
-  if (string != NULL)
-    free (string);
-
   return NULL;
 }
 
@@ -311,21 +288,17 @@ emacs_module_init (struct emacs_runtime *runtime)
     goto err;
 
   // Register our functions
-  if (!defun (env, "example-async-dynamic-module-dyn--init",
-	      Fexample_async_dynamic_module_dyn__init, 1))
-    goto err;
+  defun (env, "example-async-dynamic-module-dyn--init",
+	 Fexample_async_dynamic_module_dyn__init, 1);
 
-  if (!defun (env, "example-async-dynamic-module-dyn--sleep-ret",
-	      Fexample_async_dynamic_module_dyn__sleep_ret, 2))
-    goto err;
+  defun (env, "example-async-dynamic-module-dyn--sleep-ret",
+	 Fexample_async_dynamic_module_dyn__sleep_ret, 2);
 
-  if (!defun (env, "example-async-dynamic-module-dyn--drain-completions",
-	      Fexample_async_dynamic_module_dyn__drain_completions, 0))
-    goto err;
+  defun (env, "example-async-dynamic-module-dyn--drain-completions",
+	 Fexample_async_dynamic_module_dyn__drain_completions, 0);
 
   // Provide the `example-async-dynamic-module-dyn' feature.
-  if (!provide (env, "example-async-dynamic-module-dyn"))
-    goto err;
+  provide (env, "example-async-dynamic-module-dyn");
 
   return 0;
  err:
