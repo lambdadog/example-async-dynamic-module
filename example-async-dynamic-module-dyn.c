@@ -65,7 +65,6 @@ handle_non_local_exit (emacs_env *env)
     }
 }
 
-// FIXME: do error handling
 /* Drains all completions. Is called by the process filter upon being
    notified by a worker thread that completions are available. */
 static emacs_value
@@ -118,7 +117,6 @@ Fexample_async_dynamic_module_dyn__drain_completions (emacs_env *env,
   return NULL;
 }
 
-// FIXME: do error handling
 /* Runs in a new thread as an example of long, blocking work being
    wrapped by an async function. */
 static void
@@ -142,7 +140,8 @@ static void
 
   free (thread_data);
 
-  sleep (seconds);
+  while (seconds > 0)
+    seconds = sleep (seconds);
 
   // Write completion
   next_completion = malloc (sizeof (*next_completion));
@@ -156,11 +155,14 @@ static void
   pthread_mutex_unlock (&completions_lock);
 
   char zero = 0;
-  write (channel_fd, (void *) &zero, 1);
-  // I'm not actually sure if this is necessary for a pipe created by
-  // Emacs. TODO: determine
+  if (write (channel_fd, (void *) &zero, 1) != -1)
+    // If the channel is closed it's essentially possible to
+    // error-handle meaningfully as we have no way to talk to the main
+    // process at all, but we can at least skip trying to fdatasync.
+    goto fin;
   fdatasync (channel_fd);
 
+ fin:
   return NULL;
 }
 
