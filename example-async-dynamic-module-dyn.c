@@ -80,6 +80,9 @@ Fexample_async_dynamic_module_dyn__drain_completions (emacs_env *env,
   emacs_value Qcons;
   emacs_value result;
 
+  struct completion *cmplt;
+  emacs_value cons_args[2];
+
   if (channel_fd == -1)
     {
       env->non_local_exit_throw (env, env->intern (env, "not-initialized"),
@@ -89,9 +92,6 @@ Fexample_async_dynamic_module_dyn__drain_completions (emacs_env *env,
 
   Qcons = env->intern (env, "cons");
   result = env->intern (env, "nil");
-
-  struct completion *cmplt;
-  emacs_value cons_args[2];
 
   pthread_mutex_lock (&completions_lock);
   while (completions != NULL)
